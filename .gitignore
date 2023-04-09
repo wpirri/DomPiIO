@@ -1,0 +1,14 @@
+
+Programas/Servers/dompi_gpio/config.d
+Programas/Servers/dompi_gpio/config.o
+Programas/Servers/dompi_gpio/ctcp.d
+Programas/Servers/dompi_gpio/ctcp.o
+Programas/Servers/dompi_gpio/dom32iopi.d
+Programas/Servers/dompi_gpio/dom32iopi.o
+Programas/Servers/dompi_gpio/dompi_gpio
+Programas/Servers/dompi_gpio/dompi_gpio.d
+Programas/Servers/dompi_gpio/dompi_gpio.o
+Programas/Servers/dompi_gpio/serial.d
+Programas/Servers/dompi_gpio/serial.o
+Programas/Servers/dompi_gpio/strfunc.d
+Programas/Servers/dompi_gpio/strfunc.o
