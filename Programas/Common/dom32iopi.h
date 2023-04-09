@@ -15,32 +15,55 @@
 #ifndef _DOM32IOPI_H_
 #define _DOM32IOPI_H_
 
+#include <cstdio>
+
 class Dom32IoPi
 {
 public:
-    typedef struct
+    typedef struct _pi_data
     {
         struct
         {
-            char ap1[33];
-            char ap1_pass[33];
-            char ap2[33];
-            char ap2_pass[33];
-            char host1[33];
-            char host2[33];
-            unsigned int host1_port;
-            unsigned int host2_port;
-            char rqst_path[33];
-            char hw_mac[13];
-        } comm;
-        struct 
+            struct
+            {
+                char ap1[33];
+                char ap1_pass[33];
+                char ap2[33];
+                char ap2_pass[33];
+                char host1[33];
+                char host2[33];
+                unsigned int host1_port;
+                unsigned int host2_port;
+                char host1_protocol[9];
+                char host2_protocol[9];
+                char rqst_path[33];
+                char hw_mac[13];
+            } comm;
+            struct 
+            {
+                int config;    /* 0=output 1=input 2=analog */
+                int map;       /* Mapeo a pin de RaspBerry Pi */
+            } port[24];
+            int default_config;
+        } config;
+        struct
         {
-            char config;    /* 0=output 1=input 2=analog */
-            char status;    /* 0/1 o analog */
-            char change;    /* 0=sin cambio 1=cambio */
-            char map;       /* Mapeo a pin de RaspBerry Pi */
-        } port[24];
-    } pi_config_data;
+            struct
+            {
+                char ap1;
+                char ap2;
+                char lan1;
+                char gsm1;
+                char host1;
+                char host2;
+            } comm;
+            struct 
+            {
+                int status;    /* 0/1 o analog */
+                int change;    /* 0=sin cambio 1=cambio */
+            } port[24];
+        } status;
+    } pi_data;
 
 	Dom32IoPi();
 	Dom32IoPi(const char* filename);
@@ -48,17 +71,20 @@ public:
 
     void LoadConfig( const char* filename = nullptr );
 
-    int GetIOStatus(int port, int *iostatus);
+    int GetIOStatus();
+    void SetIOStatus();
+
     int GetConfig(int port, int *ioconfig);
-    int ConfigIO(int port, int io, int config);
-    int SetIO(int mask, int port, int *iostatus);
-    int ResetIO(int mask, int port, int *iostatus);
-    int SwitchIO(int mask, int port, int *iostatus);
-    int PulseIO(int mask, int port, int sec, int *iostatus);
+    int ConfigIO(const char* io, const char* mode);
 
-    void SetStatusLed(int status);
+    void SetStatusLed(int st);
+    void SetModeLed(int st);
 
-    pi_config_data m_pi_config_data;
+    int HttpRespCode(const char* http);
+    int HttpData(const char* http, char* data);
+
+
+    pi_data m_pi_data;
 
 protected:
     void SetDefaultConfig( void );

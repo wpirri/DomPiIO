@@ -23,6 +23,7 @@
 #include <string>
 #include <iostream>
 #include <csignal>
+#include <cstdio>
 using namespace std;
 
 #include <unistd.h>
@@ -34,12 +35,17 @@ using namespace std;
 #include <cjson/cJSON.h>
 
 #include "dom32iopi.h"
+#include "ctcp.h"
+#include "strfunc.h"
 #include "config.h"
 
 #define MAX_BUFFER_LEN 32767
 
 CGMServerWait *m_pServer;
 DPConfig *pConfig;
+Dom32IoPi *pPI;
+
+
 void OnClose(int sig);
 
 int internal_timeout;
@@ -50,20 +56,20 @@ int internal_timeout;
 * 3.- %d: Content-Length
 * 4.- %s: datos
 */
-http_post =     "POST %s HTTP/1.1\r\n"
-				"Host: %s\r\n"
-				"Connection: keep-alive\r\n"
-				"Content-Length: %d\r\n"
-				"User-Agent: DomPiSrv/1.00 (RaspBerryPi;Dom32)\r\n"
-				"Accept: text/html,text/xml\r\n"
-				"Content-Type: application/x-www-form-urlencoded\r\n\r\n%s";
+char http_post[] =	"POST %s HTTP/1.1\r\n"
+					"Host: %s\r\n"
+					"Connection: keep-alive\r\n"
+					"Content-Length: %d\r\n"
+					"User-Agent: DomPiSrv/1.00 (RaspBerryPi;Dom32)\r\n"
+					"Accept: text/html,text/xml\r\n"
+					"Content-Type: application/x-www-form-urlencoded\r\n\r\n%s";
 
 /*
 * GET
 * 1.- %s: URI
 * 2.- %s: Host
 */
-http_get =     "GET %s HTTP/1.1\r\n"
+char http_get[] =	"GET %s HTTP/1.1\r\n"
 					"Host: %s\r\n"
 					"Connection: close\r\n"
 					"User-Agent: DomPiSrv/1.00 (RaspBerryPi;Dom32)\r\n"
@@ -71,85 +77,100 @@ http_get =     "GET %s HTTP/1.1\r\n"
 
 void HTTPNotificarStatus( void )
 {
-	char http_rqst_data{1024};
+	char http_rqst_data[4096];
 	char http_rqst[4096];
+	char http_resp[4096];
+	char http_rqst_uri[256];
+	char label[64], value[1024];
 	int first_change = 1;
-
+	CTcp tcp;
+	int rc;
+	char *p;
+	int i;
+	STRFunc str;
 
     snprintf(http_rqst_data, 1024,
-        "ID=%s&IO1=%i&IO2=%i&IO3=%i&IO4=%i&IO5=%i&IO6=%i&IO7=%i&IO8=%i&OUT1=%i&OUT2",
-        hw_mac_address,
-        io1, io2, io3, io4, io5, io6, io7, io8,
-		out1, out2);
+        "ID=%s&IO1=%i&IO2=%i&IO3=%i&IO4=%i&IO5=%i&IO6=%i&IO7=%i&IO8=%i&OUT1=%i&OUT2=%i",
+        pPI->m_pi_data.config.comm.hw_mac,
+		pPI->m_pi_data.status.port[0].status,
+		pPI->m_pi_data.status.port[1].status,
+		pPI->m_pi_data.status.port[2].status,
+		pPI->m_pi_data.status.port[3].status,
+		pPI->m_pi_data.status.port[4].status,
+		pPI->m_pi_data.status.port[5].status,
+		pPI->m_pi_data.status.port[6].status,
+		pPI->m_pi_data.status.port[7].status,
+		pPI->m_pi_data.status.port[8].status,
+		pPI->m_pi_data.status.port[9].status);
     
-    if( change_io1  ||
-        change_io2  ||
-        change_io3  ||
-        change_io4  ||
-        change_io5  ||
-        change_io6  ||
-        change_io7  ||
-        change_io8  ||
-        change_out1 ||
-        change_out2  )
+    if( pPI->m_pi_data.status.port[0].change ||
+	    pPI->m_pi_data.status.port[1].change ||
+	    pPI->m_pi_data.status.port[2].change ||
+	    pPI->m_pi_data.status.port[3].change ||
+	    pPI->m_pi_data.status.port[4].change ||
+	    pPI->m_pi_data.status.port[5].change ||
+	    pPI->m_pi_data.status.port[6].change ||
+	    pPI->m_pi_data.status.port[7].change ||
+	    pPI->m_pi_data.status.port[8].change ||
+	    pPI->m_pi_data.status.port[9].change  )
     {
         strcat(http_rqst_data, "&CHG=");
         
-        if(change_io1)
+        if(pPI->m_pi_data.status.port[0].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO1");
         }
-        if(change_io2)
+        if(pPI->m_pi_data.status.port[1].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO2");
         }
-        if(change_io3)
+        if(pPI->m_pi_data.status.port[2].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO3");
         }
-        if(change_io4)
+        if(pPI->m_pi_data.status.port[3].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO4");
         }
-        if(change_io5)
+        if(pPI->m_pi_data.status.port[4].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO5");
         }
-        if(change_io6)
+        if(pPI->m_pi_data.status.port[5].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO6");
         }
-        if(change_io7)
+        if(pPI->m_pi_data.status.port[6].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO7");
         }
-        if(change_io8)
+        if(pPI->m_pi_data.status.port[7].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "IO8");
         }
-        if(g_control_out.change1)
+        if(pPI->m_pi_data.status.port[8].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
             strcat(http_rqst_data, "OUT1");
         }
-        if(g_control_out.change2)
+        if(pPI->m_pi_data.status.port[9].change)
         {
             if(!first_change) strcat(http_rqst_data, ",");
             first_change = 0;
@@ -159,64 +180,57 @@ void HTTPNotificarStatus( void )
     
 
     /* Agrego solicitud de configuración */
-    if(g_wifi_info.f.config.io_config_default && (MAX_HTTP_DATA - strlen(http_rqst_data) > 10) )
+    if(pPI->m_pi_data.config.default_config)
     {
         strcat(http_rqst_data, "&GETCONF=1");
     }
     
-    snprintf(http_rqst_uri, MAX_HTTP_URI, "%s/infoio.cgi", g_wifi_info.f.config.rqst_path);
+    snprintf(http_rqst_uri, 255, "%s/infoio.cgi", pPI->m_pi_data.config.comm.rqst_path);
 /* POST
  * 1.- %s: URI
  * 2.- %s: Host
  * 3.- %d: Content-Length
  * 4.- %s: datos
  */
-    snprintf(http_rqst, MAX_HTTP_DATA + MAX_HTTP_HEAD, http_post,
+    snprintf(http_rqst, 4095, http_post,
             http_rqst_uri,
-            g_wifi_info.f.config.wifi_host1,
+            pPI->m_pi_data.config.comm.host1,
             strlen(http_rqst_data),
             http_rqst_data);
 
-    LogMessage("HTTPNotificarStatus - data-len: %d", strlen(http_rqst));
+    m_pServer->m_pLog->Add(100, "[HTTPNotificarStatus] - Rqst [%d][%s]", strlen(http_rqst), http_rqst);
 
-    if(q.Query(raddr, 80, buffer, buffer, BUFFER_LEN, m_timeout) > 0)
+    if(tcp.Query(pPI->m_pi_data.config.comm.host1, pPI->m_pi_data.config.comm.host1_port, 
+				http_rqst, http_resp, 4095, 1000) > 0)
     {
-        if(m_pLog) m_pLog->Add(100, "[Dom32IoWifi] GetConfig Receive [%s]", buffer);
-        rc = HttpRespCode(buffer);
-        if(rc != 200) return rc;
+        m_pServer->m_pLog->Add(100, "[HTTPNotificarStatus]  Resp [%d][%s]", strlen(http_resp), http_resp);
+        rc = pPI->HttpRespCode(http_resp);
+        if(rc != 200) return;
         /* Me posiciono al final de la cabecera HTTP, al principio de los datos */
-        p = strstr(buffer, "\r\n\r\n");
+        p = strstr(http_resp, "\r\n\r\n");
         if(p)
         {
             /* Salteo CR/LF CR/LF */
             p += 4;
-            for(i = 0; Str.ParseDataIdx(p, label, value, i); i++)
+            for(i = 0; str.ParseDataIdx(p, label, value, i); i++)
             {
+				/* Proceso la respuesta */
 
 
 			}
 		}
 	}
-
-
-
-
-
     /* Reseteo los cambios */
-    g_control_io.change1 = 0;
-    g_control_io.change2 = 0;
-    g_control_io.change3 = 0;
-    g_control_io.change4 = 0;
-    g_control_io.change5 = 0;
-    g_control_io.change6 = 0;
-    g_control_out.change1 = 0;
-    g_control_out.change2 = 0;
-    g_control_out.change3 = 0;
-    g_control_out.change4 = 0;
-
-
-
-
+	pPI->m_pi_data.status.port[0].change = 0;
+	pPI->m_pi_data.status.port[1].change = 0;
+	pPI->m_pi_data.status.port[2].change = 0;
+	pPI->m_pi_data.status.port[3].change = 0;
+	pPI->m_pi_data.status.port[4].change = 0;
+	pPI->m_pi_data.status.port[5].change = 0;
+	pPI->m_pi_data.status.port[6].change = 0;
+	pPI->m_pi_data.status.port[7].change = 0;
+	pPI->m_pi_data.status.port[8].change = 0;
+	pPI->m_pi_data.status.port[9].change = 0;
 }
 
 int main(/*int argc, char** argv, char** env*/void)
@@ -226,18 +240,11 @@ int main(/*int argc, char** argv, char** env*/void)
 	char typ[1];
 	char message[MAX_BUFFER_LEN+1];
 	unsigned long message_len;
-	unsigned char blink;
 	//unsigned long exclude_modem = 0;
 
-	int current_io_status;
-	int previus_io_status = 0;
-	int current_ex_status;
-	int previus_ex_status = 0;
-	int delta_io_status;
-	int delta_ex_status;
 	int timer_count_keep_alive;
-	char temp_s[64];
 	char s[16];
+	char filename[FILENAME_MAX+1];
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGKILL,         OnClose);
@@ -262,30 +269,27 @@ int main(/*int argc, char** argv, char** env*/void)
 		internal_timeout = atoi(s) * 1000;
 	}
 
-	if( pConfig->GetParam("MAC-ADDRESS", hw_mac_address))
+	if( pConfig->GetParam("RBPI-IO-CONFIG", filename))
 	{
-		strcpy(hw_mac_address, "000000000000");
+	    pPI = new Dom32IoPi(filename);
 	}
+	else
+	{
+	    pPI = new Dom32IoPi();
+	}
+	pPI->LoadConfig();
 
     cJSON *json_Message;
 
-	int return_int1;
-	int return_int2;
-
-    Dom32IoPi *pPI;
-    pPI = new Dom32IoPi();
-	pPI->LoadConfig();
-	
 	m_pServer->Suscribe("dompi_pi_ioconfig", GM_MSG_TYPE_CR);
 	m_pServer->Suscribe("dompi_pi_iostatus", GM_MSG_TYPE_CR);
 	m_pServer->Suscribe("dompi_pi_ioswitch", GM_MSG_TYPE_CR);
 	m_pServer->Suscribe("dompi_pi_wifi", GM_MSG_TYPE_CR);
 
-	blink = 0;
 	timer_count_keep_alive = 0;
 	while((rc = m_pServer->Wait(fn, typ, message, 4096, &message_len, 10 )) >= 0)
 	{
-		json_req = NULL;
+		json_Message = NULL;
 
 		if(rc > 0)
 		{
@@ -384,13 +388,21 @@ int main(/*int argc, char** argv, char** env*/void)
 		{
 			/* expiracion del timer */
 
-			timer_count_keep_alive++;
-			if(timer_count_keep_alive >= 600)	/* 60 segundos */
+			/* Notifico cuando hay cambios o cuando vence el timer de keep alive */
+			if(pPI->GetIOStatus())
 			{
 				timer_count_keep_alive = 0;
-				send_keep_alive_report();
+				HTTPNotificarStatus();
 			}
-
+			else
+			{
+				timer_count_keep_alive++;
+				if(timer_count_keep_alive >= 600)	/* 60 segundos */
+				{
+					timer_count_keep_alive = 0;
+					HTTPNotificarStatus();
+				}
+			}
 
 
 

@@ -3,7 +3,7 @@
 INCLUDE=-I../../Common/
 CXXFLAGS=-g -Wall -Wextra -MMD -O2
 LIBS=-lgmqw -lgmshared -lstdc++ -lcjson -lwiringPi -lssl -lcrypto
-OBJECTS=dompi_gpio.o dom32iopi.o config.o 
+OBJECTS=dompi_gpio.o dom32iopi.o config.o ctcp.o strfunc.o serial.o
 OUTPUT=dompi_gpio
 DEFINE=-D __NO__DEBUG__
 HWNAME=uname -m
@@ -17,14 +17,21 @@ all: dompi_gpio
 dompi_gpio.o: dompi_gpio.cc
 	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c dompi_gpio.cc
 
-gprs.o: gprs.cc
-	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c gprs.cc
-
 config.o: ../../Common/config.cc
 	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c ../../Common/config.cc
 
 dom32iopi.o: ../../Common/dom32iopi.cc
 	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c ../../Common/dom32iopi.cc
+
+ctcp.o: ../../Common/ctcp.cc
+	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c ../../Common/ctcp.cc
+
+strfunc.o: ../../Common/strfunc.cc
+	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c ../../Common/strfunc.cc
+
+serial.o: ../../Common/serial.cc
+	$(CC) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) $(DEFINE) -c ../../Common/serial.cc
+
 
 dompi_gpio: $(OBJECTS)
 	$(CC) $(CFLAGS) $(CXXFLAGS) $(LFLAGS) -O $(OBJECTS) $(LIBS) -o $(OUTPUT)
