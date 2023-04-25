@@ -73,6 +73,7 @@ public:
 
     int GetIOStatus();
     void SetIOStatus();
+    int SetIO(const char* io, const char* sval);
 
     int GetConfig(int port, int *ioconfig);
     int ConfigIO(const char* io, const char* mode);

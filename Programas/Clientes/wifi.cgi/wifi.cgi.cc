@@ -44,7 +44,6 @@ int main(int /*argc*/, char** /*argv*/, char** env)
   CGMError gmerror;
   CGMBuffer query;
   CGMBuffer response;
-  char buffer[4096];
   DPConfig *pConfig;
   STRFunc Str;
   cJSON *json_obj;
@@ -178,7 +177,7 @@ int main(int /*argc*/, char** /*argv*/, char** env)
     syslog(LOG_DEBUG, "Call Q: wifi [%s]", query.C_Str());
   }
 
-  rc = pClient->Call("dompi_io_wifi", query, response, 100);
+  rc = pClient->Call("dompi_pi_wifi", query, response, 100);
   if(rc == 0)
   {
     if(trace)
@@ -187,12 +186,11 @@ int main(int /*argc*/, char** /*argv*/, char** env)
     }
     /*Armar respuesta en formato POST con datos de response.Data() en formato JSON */
     /* Contenido de la página */
-    fprintf(stdout, "%s\r\n", buffer);
+    fprintf(stdout, "%s\r\n", response.Data());
     if(trace)
     {
-      syslog(LOG_DEBUG, "%s\r\n", buffer);
+      syslog(LOG_DEBUG, "%s\r\n", response.Data());
     }
-    cJSON_Delete(json_obj);
   }
   else
   {

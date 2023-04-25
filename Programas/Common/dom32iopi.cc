@@ -48,6 +48,8 @@ Dom32IoPi::Dom32IoPi()
     wiringPiSetupGpio(); // Initialize wiringPi -- using Broadcom pin numbers
     m_sfd = (-1);
     strcpy(m_config_file_name, DOMPI_IO_DEFAULT_CONFIG);
+    memset(&m_pi_data, 0, sizeof(m_pi_data));
+
 }
 
 Dom32IoPi::Dom32IoPi(const char* filename)
@@ -59,6 +61,8 @@ Dom32IoPi::Dom32IoPi(const char* filename)
         strncpy(m_config_file_name, filename, FILENAME_MAX);
     }
     else strcpy(m_config_file_name, DOMPI_IO_DEFAULT_CONFIG);
+
+    memset(&m_pi_data, 0, sizeof(m_pi_data));
 }
 
 Dom32IoPi::~Dom32IoPi()
@@ -68,10 +72,10 @@ Dom32IoPi::~Dom32IoPi()
 
 void Dom32IoPi::SetDefaultConfig()
 {
-    DPConfig cfg("/etc/dompiweb.config");
+    DPConfig cfg("/etc/dompiio.config");
     char s[8];
 
-    memset(&m_pi_data, 0, sizeof(m_pi_data.config));
+    memset(&m_pi_data.config, 0, sizeof(m_pi_data.config));
 
 	if( !cfg.GetParam("DOMPIWEB-DEFAULT-HOST", m_pi_data.config.comm.host1) )
 	{
@@ -85,6 +89,10 @@ void Dom32IoPi::SetDefaultConfig()
 	if( !cfg.GetParam("DOMPIWEB-DEFAULT-PROTO", m_pi_data.config.comm.host1_protocol) )
 	{
 		strcpy(m_pi_data.config.comm.host1_protocol, "http");
+	}
+	if( !cfg.GetParam("RQST-PATH", m_pi_data.config.comm.rqst_path) )
+	{
+		strcpy(m_pi_data.config.comm.rqst_path, "/cgi-bin");
 	}
 	if( !cfg.GetParam("MAC-ADDRESS", m_pi_data.config.comm.hw_mac) )
 	{
@@ -148,6 +156,7 @@ void Dom32IoPi::LoadConfig( const char* filename )
     {
         if(fread(&m_pi_data.config, sizeof(m_pi_data.config), 1, fd))
         {
+            m_pi_data.config.default_config = 0;
             fclose(fd);
         }
         else
@@ -187,7 +196,7 @@ int Dom32IoPi::GetIOStatus()
 
     for(i = 0; i < 24; i++)
     {
-        if(m_pi_data.config.port[i].map >0)
+        if(m_pi_data.config.port[i].map > 0 && m_pi_data.config.port[i].config == INPUT)
         {
             status = digitalRead(gpio_pin[m_pi_data.config.port[i].map]);
             if(status != m_pi_data.status.port[i].status)
@@ -215,6 +224,129 @@ void Dom32IoPi::SetIOStatus()
     }
 }
 
+int Dom32IoPi::SetIO(const char* io, const char* sval)
+{
+    STRFunc str;
+    char IO[1024];
+    int val;
+
+    str.ToUpper(io, IO);
+
+    if( !strcmp(sval, "on") || !strcmp(sval, "ON"))
+    {
+        val = 1;
+    }
+    else if( !strcmp(sval, "off") || !strcmp(sval, "OFF"))
+    {
+        val = 0;
+    }
+    else
+    {
+        val = atoi(sval);
+    }
+
+    if( !strcmp(IO, "IO1") && m_pi_data.config.port[0].config == OUTPUT)
+    {
+        m_pi_data.status.port[0].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO2") && m_pi_data.config.port[1].config == OUTPUT)
+    {
+        m_pi_data.status.port[1].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO3") && m_pi_data.config.port[2].config == OUTPUT)
+    {
+        m_pi_data.status.port[2].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO4") && m_pi_data.config.port[3].config == OUTPUT)
+    {
+        m_pi_data.status.port[3].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO5") && m_pi_data.config.port[4].config == OUTPUT)
+    {
+        m_pi_data.status.port[4].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO6") && m_pi_data.config.port[5].config == OUTPUT)
+    {
+        m_pi_data.status.port[5].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO7") && m_pi_data.config.port[6].config == OUTPUT)
+    {
+        m_pi_data.status.port[6].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "IO8") && m_pi_data.config.port[7].config == OUTPUT)
+    {
+        m_pi_data.status.port[7].status = (val)?1:0;
+    }
+
+    if( !strcmp(IO, "OUT1") )
+    {
+        m_pi_data.status.port[8].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT2") )
+    {
+        m_pi_data.status.port[9].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT3") )
+    {
+        m_pi_data.status.port[10].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT4") )
+    {
+        m_pi_data.status.port[11].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT5"))
+    {
+        m_pi_data.status.port[12].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT6") )
+    {
+        m_pi_data.status.port[13].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT7") )
+    {
+        m_pi_data.status.port[14].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "OUT8") )
+    {
+        m_pi_data.status.port[15].status = (val)?1:0;
+    }
+
+    if( !strcmp(IO, "EXP1_1") && m_pi_data.config.port[16].config == OUTPUT)
+    {
+        m_pi_data.status.port[16].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_2") && m_pi_data.config.port[17].config == OUTPUT)
+    {
+        m_pi_data.status.port[17].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_3") && m_pi_data.config.port[18].config == OUTPUT)
+    {
+        m_pi_data.status.port[17].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_4") && m_pi_data.config.port[19].config == OUTPUT)
+    {
+        m_pi_data.status.port[19].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_5") && m_pi_data.config.port[20].config == OUTPUT)
+    {
+        m_pi_data.status.port[20].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_6") && m_pi_data.config.port[21].config == OUTPUT)
+    {
+        m_pi_data.status.port[21].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_7") && m_pi_data.config.port[22].config == OUTPUT)
+    {
+        m_pi_data.status.port[22].status = (val)?1:0;
+    }
+    else if( !strcmp(IO, "EXP1_8") && m_pi_data.config.port[23].config == OUTPUT)
+    {
+        m_pi_data.status.port[23].status = (val)?1:0;
+    }
+
+    return 0;
+}
+
 int Dom32IoPi::GetConfig(int /*port*/, int */*ioconfig*/)
 {
     return (-1);
@@ -223,9 +355,10 @@ int Dom32IoPi::GetConfig(int /*port*/, int */*ioconfig*/)
 int Dom32IoPi::ConfigIO(const char* io, const char* mode)
 {
     STRFunc str;
-    char IO[9];
-    char MODE[17];
+    char IO[1024];
+    char MODE[1024];
     int i_mode;
+    int change = 0;
 
     str.ToUpper(io, IO);
     str.ToUpper(mode, MODE);
@@ -242,26 +375,99 @@ int Dom32IoPi::ConfigIO(const char* io, const char* mode)
         return (-1);
     }
 
-    if( !strcmp(IO, "IO1")) m_pi_data.config.port[0].config = i_mode;
-    if( !strcmp(IO, "IO2")) m_pi_data.config.port[1].config = i_mode;
-    if( !strcmp(IO, "IO3")) m_pi_data.config.port[2].config = i_mode;
-    if( !strcmp(IO, "IO4")) m_pi_data.config.port[3].config = i_mode;
-    if( !strcmp(IO, "IO5")) m_pi_data.config.port[4].config = i_mode;
-    if( !strcmp(IO, "IO6")) m_pi_data.config.port[5].config = i_mode;
-    if( !strcmp(IO, "IO7")) m_pi_data.config.port[6].config = i_mode;
-    if( !strcmp(IO, "IO8")) m_pi_data.config.port[7].config = i_mode;
+    if( !strcmp(IO, "IO1"))
+    {
+        m_pi_data.config.port[0].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO2"))
+    {
+        m_pi_data.config.port[1].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO3"))
+    {
+        m_pi_data.config.port[2].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO4"))
+    {
+        m_pi_data.config.port[3].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO5"))
+    {
+        m_pi_data.config.port[4].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO6"))
+    {
+        m_pi_data.config.port[5].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO7"))
+    {
+        m_pi_data.config.port[6].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "IO8"))
+    {
+        m_pi_data.config.port[7].config = i_mode;
+        change = 1;
+    }
 
-    if( !strcmp(IO, "EXP1_1")) m_pi_data.config.port[16].config = i_mode;
-    if( !strcmp(IO, "EXP1_2")) m_pi_data.config.port[17].config = i_mode;
-    if( !strcmp(IO, "EXP1_3")) m_pi_data.config.port[18].config = i_mode;
-    if( !strcmp(IO, "EXP1_4")) m_pi_data.config.port[19].config = i_mode;
-    if( !strcmp(IO, "EXP1_5")) m_pi_data.config.port[20].config = i_mode;
-    if( !strcmp(IO, "EXP1_6")) m_pi_data.config.port[21].config = i_mode;
-    if( !strcmp(IO, "EXP1_7")) m_pi_data.config.port[22].config = i_mode;
-    if( !strcmp(IO, "EXP1_8")) m_pi_data.config.port[23].config = i_mode;
+    if( !strcmp(IO, "EXP1_1"))
+    {
+        m_pi_data.config.port[16].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_2"))
+    {
+        m_pi_data.config.port[17].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_3"))
+    {
+        m_pi_data.config.port[18].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_4"))
+    {
+        m_pi_data.config.port[19].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_5"))
+    {
+        m_pi_data.config.port[20].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_6"))
+    {
+        m_pi_data.config.port[21].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_7"))
+    {
+        m_pi_data.config.port[22].config = i_mode;
+        change = 1;
+    }
+    else if( !strcmp(IO, "EXP1_8"))
+    {
+        m_pi_data.config.port[23].config = i_mode;
+        change = 1;
+    }
 
-    SetConfig();
-    SaveConfig();
+    if( !memcmp(IO, "OUT", 3))
+    {
+        m_pi_data.config.default_config = 0;
+    }
+
+    if(change)
+    {
+        m_pi_data.config.default_config = 0;
+        SetConfig();
+        SaveConfig();
+    }
 
     return 0;
 }
@@ -279,30 +485,52 @@ void Dom32IoPi::SetModeLed(int st)
 void Dom32IoPi::SetConfig( void )
 {
     pinMode(gpio_pin[m_pi_data.config.port[0].map], m_pi_data.config.port[0].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[0].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[1].map], m_pi_data.config.port[1].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[1].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[2].map], m_pi_data.config.port[2].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[2].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[3].map], m_pi_data.config.port[3].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[3].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[4].map], m_pi_data.config.port[4].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[4].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[5].map], m_pi_data.config.port[5].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[5].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[6].map], m_pi_data.config.port[6].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[6].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[7].map], m_pi_data.config.port[7].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[7].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     
     pinMode(gpio_pin[m_pi_data.config.port[8].map], m_pi_data.config.port[8].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[8].map], PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[9].map], m_pi_data.config.port[9].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[9].map], PUD_OFF);
 
     pinMode(gpio_pin[m_pi_data.config.port[16].map], m_pi_data.config.port[16].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[16].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[17].map], m_pi_data.config.port[17].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[17].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[18].map], m_pi_data.config.port[18].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[18].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[19].map], m_pi_data.config.port[19].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[19].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[20].map], m_pi_data.config.port[20].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[20].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[21].map], m_pi_data.config.port[21].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[21].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[22].map], m_pi_data.config.port[22].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[22].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
     pinMode(gpio_pin[m_pi_data.config.port[23].map], m_pi_data.config.port[23].config);
+    pullUpDnControl(gpio_pin[m_pi_data.config.port[23].map], (m_pi_data.config.port[0].config == INPUT)?PUD_UP:PUD_OFF);
 
     pinMode(gpio_pin[GPIO_MODE_LED], OUTPUT);
+    pullUpDnControl(gpio_pin[GPIO_MODE_LED], PUD_OFF);
     pinMode(gpio_pin[GPIO_STATUS_LED], OUTPUT);
+    pullUpDnControl(gpio_pin[GPIO_STATUS_LED], PUD_OFF);
     pinMode(gpio_pin[GPIO_TX], OUTPUT);
+    pullUpDnControl(gpio_pin[GPIO_TX], PUD_OFF);
     pinMode(gpio_pin[GPIO_RX], INPUT);
+    pullUpDnControl(gpio_pin[GPIO_RX], PUD_OFF);
 }
 
 int Dom32IoPi::HttpRespCode(const char* http)

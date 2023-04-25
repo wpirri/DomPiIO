@@ -49,6 +49,7 @@ Dom32IoPi *pPI;
 void OnClose(int sig);
 
 int internal_timeout;
+unsigned char blink_count;
 
 /* POST
 * 1.- %s: URI
@@ -262,7 +263,7 @@ int main(/*int argc, char** argv, char** env*/void)
 	m_pServer->Init("dompi_gpio");
 	m_pServer->m_pLog->Add(1, "Iniciando interface GPIO");
 
-	pConfig = new DPConfig("/etc/dompiweb.config");
+	pConfig = new DPConfig("/etc/dompiio.config");
 	internal_timeout = 1000;
 	if( pConfig->GetParam("INTERNAL-TIMEOUT", s))
 	{
@@ -280,6 +281,7 @@ int main(/*int argc, char** argv, char** env*/void)
 	pPI->LoadConfig();
 
     cJSON *json_Message;
+    cJSON *json_un_obj;
 
 	m_pServer->Suscribe("dompi_pi_ioconfig", GM_MSG_TYPE_CR);
 	m_pServer->Suscribe("dompi_pi_iostatus", GM_MSG_TYPE_CR);
@@ -287,6 +289,7 @@ int main(/*int argc, char** argv, char** env*/void)
 	m_pServer->Suscribe("dompi_pi_wifi", GM_MSG_TYPE_CR);
 
 	timer_count_keep_alive = 0;
+	blink_count = 0;
 	while((rc = m_pServer->Wait(fn, typ, message, 4096, &message_len, 10 )) >= 0)
 	{
 		json_Message = NULL;
@@ -304,9 +307,34 @@ int main(/*int argc, char** argv, char** env*/void)
 			if( !strcmp(fn, "dompi_pi_ioconfig"))
 			{
 
+				json_un_obj = json_Message;
+				while( json_un_obj )
+				{
+					/* Voy hasta el elemento con datos */
+					if(json_un_obj->type == cJSON_Object)
+					{
+						json_un_obj = json_un_obj->child;
+					}
+					else
+					{
+						if(json_un_obj->type == cJSON_String)
+						{
+							if(json_un_obj->string && json_un_obj->valuestring)
+							{
+								if(strlen(json_un_obj->string) && strlen(json_un_obj->valuestring))
+								{
+									/*                         Label               Value      */
+									m_pServer->m_pLog->Add(100, "[ConfigIO] %s = %s", json_un_obj->string, json_un_obj->valuestring);
+									pPI->ConfigIO(json_un_obj->string, json_un_obj->valuestring);
+								}
+							}
+						}
+						json_un_obj = json_un_obj->next;
+					}
+				}
 
-
-
+				/* OK */
+				strcpy(message, "{\"response\":{\"resp_code\":\"0\", \"resp_msg\":\"Ok\"}}");
 
 				m_pServer->m_pLog->Add(90, "%s:(R)[%s]", fn, message);
 				if(m_pServer->Resp(message, strlen(message), GME_OK) != GME_OK)
@@ -323,9 +351,34 @@ int main(/*int argc, char** argv, char** env*/void)
 			else if( !strcmp(fn, "dompi_pi_iostatus"))
 			{
 
+				json_un_obj = json_Message;
+				while( json_un_obj )
+				{
+					/* Voy hasta el elemento con datos */
+					if(json_un_obj->type == cJSON_Object)
+					{
+						json_un_obj = json_un_obj->child;
+					}
+					else
+					{
+						if(json_un_obj->type == cJSON_String)
+						{
+							if(json_un_obj->string && json_un_obj->valuestring)
+							{
+								if(strlen(json_un_obj->string) && strlen(json_un_obj->valuestring))
+								{
+									/*                         Label               Value      */
+									m_pServer->m_pLog->Add(100, "[SetIO] %s = %s", json_un_obj->string, json_un_obj->valuestring);
+									pPI->SetIO(json_un_obj->string, json_un_obj->valuestring);
+								}
+							}
+						}
+						json_un_obj = json_un_obj->next;
+					}
+				}
 
-
-
+				/* OK */
+				strcpy(message, "{\"response\":{\"resp_code\":\"0\", \"resp_msg\":\"Ok\"}}");
 
 				m_pServer->m_pLog->Add(90, "%s:(R)[%s]", fn, message);
 				if(m_pServer->Resp(message, strlen(message), GME_OK) != GME_OK)
@@ -345,6 +398,8 @@ int main(/*int argc, char** argv, char** env*/void)
 
 
 
+				/* OK */
+				strcpy(message, "{\"response\":{\"resp_code\":\"0\", \"resp_msg\":\"Ok\"}}");
 
 				m_pServer->m_pLog->Add(90, "%s:(R)[%s]", fn, message);
 				if(m_pServer->Resp(message, strlen(message), GME_OK) != GME_OK)
@@ -364,6 +419,8 @@ int main(/*int argc, char** argv, char** env*/void)
 
 
 
+				/* OK */
+				strcpy(message, "{\"response\":{\"resp_code\":\"0\", \"resp_msg\":\"Ok\"}}");
 
 				m_pServer->m_pLog->Add(90, "%s:(R)[%s]", fn, message);
 				if(m_pServer->Resp(message, strlen(message), GME_OK) != GME_OK)
@@ -383,14 +440,21 @@ int main(/*int argc, char** argv, char** env*/void)
 				m_pServer->m_pLog->Add(50, "GME_SVC_NOTFOUND");
 				m_pServer->Resp(NULL, 0, GME_SVC_NOTFOUND);
 			}
+
+			m_pServer->m_pLog->Add(100, "[SetIOStatus]");
+			pPI->SetIOStatus();
+
 		}
 		else
 		{
 			/* expiracion del timer */
-
+			blink_count++;
+			pPI->SetStatusLed( (blink_count&16)?1:0 );
+			pPI->SetModeLed( (blink_count&1)?0:1 );
 			/* Notifico cuando hay cambios o cuando vence el timer de keep alive */
 			if(pPI->GetIOStatus())
 			{
+				m_pServer->m_pLog->Add(100, "[GetIOStatus] Detecta cambio de estado");
 				timer_count_keep_alive = 0;
 				HTTPNotificarStatus();
 			}

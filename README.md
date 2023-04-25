@@ -1,0 +1,1 @@
+Esta aplicación está integrada por un grupo de clientes cgi y un server para GMonitor que permiten la administración de la GPIO de una Raspberry Pi mediante mensajería web.
