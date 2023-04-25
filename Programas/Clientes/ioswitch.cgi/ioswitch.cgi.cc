@@ -187,10 +187,6 @@ int main(int /*argc*/, char** /*argv*/, char** env)
     /*Armar respuesta en formato POST con datos de response.Data() en formato JSON */
     /* Contenido de la página */
     fprintf(stdout, "%s\r\n", response.Data());
-    if(trace)
-    {
-      syslog(LOG_DEBUG, "%s\r\n", response.Data());
-    }
   }
   else
   {
