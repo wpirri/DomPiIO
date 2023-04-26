@@ -39,7 +39,10 @@ using namespace std;
 #include "strfunc.h"
 #include "config.h"
 
-#define MAX_BUFFER_LEN 32767
+#define MAX_BUFFER_LEN 		32767
+#define KEEP_ALIVE			60
+#define SEND_RETRY			10
+#define SEND_RETRY_DELAY	1
 
 CGMServerWait *m_pServer;
 DPConfig *pConfig;
@@ -50,6 +53,11 @@ void OnClose(int sig);
 
 int internal_timeout;
 unsigned char blink_count;
+int timer_count_keep_alive;
+int count_notificar_retry;
+int delay_notificar_retry;
+int conectado_con_central;
+int usando_central;
 
 /* POST
 * 1.- %s: URI
@@ -89,6 +97,8 @@ void HTTPNotificarStatus( void )
 	char *p;
 	int i;
 	STRFunc str;
+
+	timer_count_keep_alive = 0;
 
     snprintf(http_rqst_data, 1024,
         "ID=%s&IO1=%i&IO2=%i&IO3=%i&IO4=%i&IO5=%i&IO6=%i&IO7=%i&IO8=%i&OUT1=%i&OUT2=%i",
@@ -199,39 +209,70 @@ void HTTPNotificarStatus( void )
             strlen(http_rqst_data),
             http_rqst_data);
 
+	if(usando_central != 1 && pPI->m_pi_data.config.comm.host2[0] == 0)
+	{
+		usando_central = 1;
+	}
+
+    m_pServer->m_pLog->Add(100, "[HTTPNotificarStatus] - Conectando con: [%s:%i]",
+							(usando_central == 1)?pPI->m_pi_data.config.comm.host1:pPI->m_pi_data.config.comm.host2,
+							(usando_central == 1)?pPI->m_pi_data.config.comm.host1_port:pPI->m_pi_data.config.comm.host2_port);
     m_pServer->m_pLog->Add(100, "[HTTPNotificarStatus] - Rqst [%d][%s]", strlen(http_rqst), http_rqst);
 
-    if(tcp.Query(pPI->m_pi_data.config.comm.host1, pPI->m_pi_data.config.comm.host1_port, 
-				http_rqst, http_resp, 4095, 1000) > 0)
+    if(tcp.Query((usando_central == 1)?pPI->m_pi_data.config.comm.host1:pPI->m_pi_data.config.comm.host2, 
+				 (usando_central == 1)?pPI->m_pi_data.config.comm.host1_port:pPI->m_pi_data.config.comm.host2_port, 
+				 http_rqst, http_resp, 4095, 1000) > 0)
     {
         m_pServer->m_pLog->Add(100, "[HTTPNotificarStatus]  Resp [%d][%s]", strlen(http_resp), http_resp);
         rc = pPI->HttpRespCode(http_resp);
-        if(rc != 200) return;
-        /* Me posiciono al final de la cabecera HTTP, al principio de los datos */
-        p = strstr(http_resp, "\r\n\r\n");
-        if(p)
-        {
-            /* Salteo CR/LF CR/LF */
-            p += 4;
-            for(i = 0; str.ParseDataIdx(p, label, value, i); i++)
-            {
-				/* Proceso la respuesta */
+        if(rc == 200)
+		{
+			/* Ok */
+			/* Me posiciono al final de la cabecera HTTP, al principio de los datos */
+			p = strstr(http_resp, "\r\n\r\n");
+			if(p)
+			{
+				/* Salteo CR/LF CR/LF */
+				p += 4;
+				for(i = 0; str.ParseDataIdx(p, label, value, i); i++)
+				{
+					/* Proceso la respuesta */
 
 
+
+
+
+				}
 			}
+			if(conectado_con_central == 0)
+			{
+				m_pServer->m_pLog->Add(10, "ON-LINE con: [%s:%i]",
+										(usando_central == 1)?pPI->m_pi_data.config.comm.host1:pPI->m_pi_data.config.comm.host2,
+										(usando_central == 1)?pPI->m_pi_data.config.comm.host1_port:pPI->m_pi_data.config.comm.host2_port);
+			}
+			conectado_con_central = (usando_central)?usando_central:2;
+			count_notificar_retry = 0;
+			delay_notificar_retry = 0;
+			/* Reseteo los cambios */
+			pPI->m_pi_data.status.port[0].change = 0;
+			pPI->m_pi_data.status.port[1].change = 0;
+			pPI->m_pi_data.status.port[2].change = 0;
+			pPI->m_pi_data.status.port[3].change = 0;
+			pPI->m_pi_data.status.port[4].change = 0;
+			pPI->m_pi_data.status.port[5].change = 0;
+			pPI->m_pi_data.status.port[6].change = 0;
+			pPI->m_pi_data.status.port[7].change = 0;
+			pPI->m_pi_data.status.port[8].change = 0;
+			pPI->m_pi_data.status.port[9].change = 0;
+			return;
 		}
 	}
-    /* Reseteo los cambios */
-	pPI->m_pi_data.status.port[0].change = 0;
-	pPI->m_pi_data.status.port[1].change = 0;
-	pPI->m_pi_data.status.port[2].change = 0;
-	pPI->m_pi_data.status.port[3].change = 0;
-	pPI->m_pi_data.status.port[4].change = 0;
-	pPI->m_pi_data.status.port[5].change = 0;
-	pPI->m_pi_data.status.port[6].change = 0;
-	pPI->m_pi_data.status.port[7].change = 0;
-	pPI->m_pi_data.status.port[8].change = 0;
-	pPI->m_pi_data.status.port[9].change = 0;
+	m_pServer->m_pLog->Add(10, "OFF-LINE");
+	conectado_con_central = 0;
+	if(count_notificar_retry == 0)
+	{
+		usando_central = (1 - usando_central);
+	}
 }
 
 int main(/*int argc, char** argv, char** env*/void)
@@ -243,7 +284,6 @@ int main(/*int argc, char** argv, char** env*/void)
 	unsigned long message_len;
 	//unsigned long exclude_modem = 0;
 
-	int timer_count_keep_alive;
 	char s[16];
 	char filename[FILENAME_MAX+1];
 
@@ -289,6 +329,11 @@ int main(/*int argc, char** argv, char** env*/void)
 	m_pServer->Suscribe("dompi_pi_wifi", GM_MSG_TYPE_CR);
 
 	timer_count_keep_alive = 0;
+	count_notificar_retry = 0;
+	delay_notificar_retry = 0;
+	conectado_con_central = 0;
+	usando_central = 1;
+
 	blink_count = 0;
 	while((rc = m_pServer->Wait(fn, typ, message, 4096, &message_len, 10 )) >= 0)
 	{
@@ -448,23 +493,37 @@ int main(/*int argc, char** argv, char** env*/void)
 		else
 		{
 			/* expiracion del timer */
+			
 			blink_count++;
-			pPI->SetStatusLed( (blink_count&16)?1:0 );
-			pPI->SetModeLed( (blink_count&1)?0:1 );
+			if(delay_notificar_retry) delay_notificar_retry--;
+
+			if(conectado_con_central)
+			{
+				pPI->SetModeLed( 0 );
+				pPI->SetStatusLed( (blink_count&4)?1:0 );
+			}
+			else
+			{
+				pPI->SetModeLed( (blink_count&1)?0:1 );
+				pPI->SetStatusLed( 0 );
+			}
+
 			/* Notifico cuando hay cambios o cuando vence el timer de keep alive */
 			if(pPI->GetIOStatus())
 			{
 				m_pServer->m_pLog->Add(100, "[GetIOStatus] Detecta cambio de estado");
 				timer_count_keep_alive = 0;
-				HTTPNotificarStatus();
+				count_notificar_retry = SEND_RETRY;
+				delay_notificar_retry = 0;
 			}
 			else
 			{
 				timer_count_keep_alive++;
-				if(timer_count_keep_alive >= 600)	/* 60 segundos */
+				if( timer_count_keep_alive >= (KEEP_ALIVE*10) )
 				{
 					timer_count_keep_alive = 0;
-					HTTPNotificarStatus();
+					count_notificar_retry = SEND_RETRY;
+					delay_notificar_retry = 0;
 				}
 			}
 
@@ -472,6 +531,14 @@ int main(/*int argc, char** argv, char** env*/void)
 
 
 
+		}
+
+		
+		if(count_notificar_retry && delay_notificar_retry == 0)
+		{
+			count_notificar_retry--;
+			delay_notificar_retry = SEND_RETRY_DELAY * 10;
+			HTTPNotificarStatus();
 		}
 		
 	}
