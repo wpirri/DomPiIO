@@ -17,6 +17,9 @@
 
 #include <cstdio>
 
+#define IO_ARRAY_LEN 24
+#define IO_FILTER_STEPS 20
+
 class Dom32IoPi
 {
 public:
@@ -41,27 +44,28 @@ public:
             } comm;
             struct 
             {
-                int config;    /* 0=output 1=input 2=analog */
-                int map;       /* Mapeo a pin de RaspBerry Pi */
-            } port[24];
+                unsigned char config;    /* 0=output 1=input 2=analog */
+                unsigned char map;       /* Mapeo a pin de RaspBerry Pi */
+            } port[IO_ARRAY_LEN];
             int default_config;
         } config;
         struct
         {
             struct
             {
-                char ap1;
-                char ap2;
-                char lan1;
-                char gsm1;
-                char host1;
-                char host2;
+                unsigned char ap1;
+                unsigned char ap2;
+                unsigned char lan1;
+                unsigned char gsm1;
+                unsigned char host1;
+                unsigned char host2;
             } comm;
             struct 
             {
-                int status;    /* 0/1 o analog */
-                int change;    /* 0=sin cambio 1=cambio */
-            } port[24];
+                unsigned char filter;
+                unsigned char status;    /* 0/1 o analog */
+                unsigned char change;    /* 0=sin cambio 1=cambio */
+            } port[IO_ARRAY_LEN];
         } status;
     } pi_data;
 

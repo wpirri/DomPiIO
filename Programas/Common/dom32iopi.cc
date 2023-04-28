@@ -45,17 +45,26 @@ using namespace std;
 
 Dom32IoPi::Dom32IoPi()
 {
+    int i;
+
     wiringPiSetupGpio(); // Initialize wiringPi -- using Broadcom pin numbers
     m_sfd = (-1);
     strcpy(m_config_file_name, DOMPI_IO_DEFAULT_CONFIG);
-    memset(&m_pi_data, 0, sizeof(m_pi_data));
 
+    memset(&m_pi_data, 0, sizeof(m_pi_data));
+    for(i = 0; i < IO_ARRAY_LEN; i++)
+    {
+        m_pi_data.status.port[i].filter = IO_FILTER_STEPS / 2;
+    }
 }
 
 Dom32IoPi::Dom32IoPi(const char* filename)
 {
+    int i;
+
     wiringPiSetupGpio(); // Initialize wiringPi -- using Broadcom pin numbers
     m_sfd = (-1);
+
     if(filename)
     {
         strncpy(m_config_file_name, filename, FILENAME_MAX);
@@ -63,6 +72,10 @@ Dom32IoPi::Dom32IoPi(const char* filename)
     else strcpy(m_config_file_name, DOMPI_IO_DEFAULT_CONFIG);
 
     memset(&m_pi_data, 0, sizeof(m_pi_data));
+    for(i = 0; i < IO_ARRAY_LEN; i++)
+    {
+        m_pi_data.status.port[i].filter = IO_FILTER_STEPS / 2;
+    }
 }
 
 Dom32IoPi::~Dom32IoPi()
@@ -121,6 +134,8 @@ void Dom32IoPi::SetDefaultConfig()
     m_pi_data.config.port[8].map = GPIO_OUT1;
     m_pi_data.config.port[9].config = OUTPUT;
     m_pi_data.config.port[9].map = GPIO_OUT2;
+    /* 10 a 15 no existen */
+
     /* EXP1 */
     m_pi_data.config.port[16].config = OUTPUT;
     m_pi_data.config.port[16].map = GPIO_EXP1_1;
@@ -191,21 +206,46 @@ void Dom32IoPi::SaveConfig( void )
 int Dom32IoPi::GetIOStatus()
 {
     int i;
-    char status;
+    char status, filter_status;
     int change = 0;
 
-    for(i = 0; i < 24; i++)
+    for(i = 0; i < IO_ARRAY_LEN; i++)
     {
         if(m_pi_data.config.port[i].map > 0 && m_pi_data.config.port[i].config == INPUT)
         {
             status = digitalRead(gpio_pin[m_pi_data.config.port[i].map]);
-            if(status != m_pi_data.status.port[i].status)
+            filter_status = m_pi_data.status.port[i].status;
+            if(status)
             {
-                m_pi_data.status.port[i].status = status;
+                /* 1 */
+                if(m_pi_data.status.port[i].filter < IO_FILTER_STEPS)
+                {
+                    m_pi_data.status.port[i].filter++;
+                    if(m_pi_data.status.port[i].filter == IO_FILTER_STEPS)
+                    {
+                        filter_status = 1;
+                    }
+                }
+            }
+            else
+            {
+                /* 0 */
+                if(m_pi_data.status.port[i].filter > 0)
+                {
+                    m_pi_data.status.port[i].filter--;
+                    if(m_pi_data.status.port[i].filter == 0)
+                    {
+                        filter_status = 0;
+                    }
+                }
+            }
+
+            if(filter_status != m_pi_data.status.port[i].status)
+            {
+                m_pi_data.status.port[i].status = filter_status;
                 m_pi_data.status.port[i].change = 1;
                 change = 1;
             }
-            
         }
     }
     return change;
@@ -215,7 +255,7 @@ void Dom32IoPi::SetIOStatus()
 {
     int i;
 
-    for(i = 0; i < 24; i++)
+    for(i = 0; i < IO_ARRAY_LEN; i++)
     {
         if(m_pi_data.config.port[i].map > 0 && m_pi_data.config.port[i].config == OUTPUT)
         {
