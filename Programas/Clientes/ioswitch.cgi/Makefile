@@ -1,7 +1,9 @@
 #!/usr/bin/make -f
 
-INCLUDE=-I../../Common/
-CXXFLAGS=-g -Wall -Wextra -MMD -O2
+include ../../../configure.mk
+
+INCLUDE=-I../../Common/ -I/usr/local/include -I/usr/local/include/gmonitor
+CXXFLAGS=$(PROCESSOR-PARAMS) -g -Wall -Wextra -MMD -O2
 LIBS=-lstdc++ -lgmshared -lgmc -lcjson -lssl -lcrypto
 OBJECTS=ioswitch.cgi.o config.o strfunc.o
 OUTPUT=ioswitch.cgi

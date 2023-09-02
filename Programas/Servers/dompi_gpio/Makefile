@@ -1,7 +1,9 @@
 #!/usr/bin/make -f
 
-INCLUDE=-I../../Common/
-CXXFLAGS=-g -Wall -Wextra -MMD -O2
+include ../../../configure.mk
+
+INCLUDE=-I../../Common/ -I/usr/local/include -I/usr/local/include/gmonitor
+CXXFLAGS=$(PROCESSOR-PARAMS) -g -Wall -Wextra -MMD -O2
 LIBS=-lgmqw -lgmshared -lstdc++ -lcjson -lwiringPi -lssl -lcrypto
 OBJECTS=dompi_gpio.o dom32iopi.o config.o ctcp.o strfunc.o serial.o
 OUTPUT=dompi_gpio

@@ -1,8 +1,10 @@
 #!/usr/bin/make -f
 
-INCLUDE=-I../../Common/
+include ../../../configure.mk
+
+INCLUDE=-I../../Common/ -I/usr/local/include -I/usr/local/include/gmonitor
 CXXFLAGS=-g -Wall -Wextra -MMD -O2
-LIBS=-lstdc++ -lgmshared -lgmc -lcjson -lssl -lcrypto
+LIBS=$(PROCESSOR-PARAMS) -lstdc++ -lgmshared -lgmc -lcjson -lssl -lcrypto
 OBJECTS=iostatus.cgi.o config.o strfunc.o
 OUTPUT=iostatus.cgi
 DEFINE=-D __NO__DEBUG__
