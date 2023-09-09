@@ -16,6 +16,9 @@ INST_LOGDIR=/var/log/gmonitor
 INST_CGIDIR=/usr/lib/cgi-bin
 INST_HTMLDIR=/var/www/html
 
+UPDATE_FILE=gmonitor_dompiio_update.tar.gz
+INSTALL_FILE=gmonitor_dompiio_install.tar.gz
+
 CP=cp
 CP_UVA=cp -uva
 RM=rm -f
